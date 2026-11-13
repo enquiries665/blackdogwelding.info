@@ -1,0 +1,7 @@
+BLACKDOG WELDING 2027 PARTS UPDATE
+
+13 priced catalogue listings, all 15 supplied photos, 20% VAT shown.
+Catalogue listings are enquiry-only, NOT automatically created as purchasable Netlify Blobs records.
+Existing /api/parts and Stripe checkout are preserved.
+Do not guess product-photo matches or parcel weights/dimensions. Confirm them before enabling checkout.
+Upload the CONTENTS of this folder into your GitHub repo; preserve .git and existing Netlify environment variables.

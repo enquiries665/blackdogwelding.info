@@ -1,0 +1,14 @@
+﻿sku,name,category,price_ex_vat_gbp,vat_rate,price_inc_vat_gbp,sold_as,description,packed_weight_grams,packed_length_cm,packed_width_cm,packed_height_cm,image_filename,active
+bd-led-rear-pair,LED rear lights — pair,Tray,150.00,20%,180.00,Pair,Pair of rear LED lights for tray applications.,,,,,,FALSE
+bd-whale-lock,Whale lock,Canopy,44.00,20%,52.80,Each,Replacement whale lock for canopy applications.,,,,,,FALSE
+bd-compression-lock,Compression push lock,Tray,11.35,20%,13.62,Each,Compression push lock for tray applications.,,,,,,FALSE
+bd-fuel-filler,Fuel inlet filler,Tray,25.00,20%,30.00,Each,Fuel inlet filler component for tray applications.,,,,,,FALSE
+bd-jerry-holder,Jerry fuel can holder,Canopy,120.00,20%,144.00,Each,Fabricated jerry fuel can holder for canopy applications.,,,,,,FALSE
+bd-spare-wheel-holder,Spare wheel holder,Canopy,250.00,20%,300.00,Each,Fabricated spare wheel holder for canopy applications.,,,,,,FALSE
+bd-water-tank-45l,45L stainless steel water tank,Tray,399.00,20%,478.80,Each,45-litre stainless steel water tank for tray applications.,,,,,,FALSE
+bd-jack-set4,Jacking legs — set of four,Canopy,240.00,20%,288.00,Set of 4,Set of four jacking legs for canopy applications.,,,,,,FALSE
+bd-jack-each,Jacking leg — individual,Canopy,60.00,20%,72.00,Each,Individual jacking leg for canopy applications.,,,,,,FALSE
+bd-headboard-light,Headboard work light,Tray & Canopy,55.00,20%,66.00,Each,Work light for tray or canopy headboard applications.,,,,,,FALSE
+bd-number-plate-light,Number plate light,Tray,10.00,20%,12.00,Each,Number plate light for tray applications.,,,,,,FALSE
+bd-side-board-catch,Side board catch,Tray,15.00,20%,18.00,Each,Side board catch for tray applications.,,,,,,FALSE
+bd-d-lash-ring,D floor lashing ring,Tray,14.00,20%,16.80,Each,D-shaped floor lashing ring for tray applications.,,,,,,FALSE

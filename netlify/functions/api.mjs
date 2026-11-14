@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import Stripe from 'stripe';
 import { getStore } from '@netlify/blobs';
+import { catalogue } from './catalogue.mjs';
 
 const json = (statusCode, value) => ({statusCode, headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'same-origin'},body:JSON.stringify(value)});
 const error=(code,message)=>json(code,{error:message});
@@ -25,8 +26,8 @@ const partsStore=()=>getStore({name:'blackdog-parts',consistency:'strong'});
 const partsOrders=()=>getStore({name:'blackdog-parts-orders',consistency:'strong'});
 const slug=v=>typeof v==='string'&&/^[a-z0-9][a-z0-9-]{1,50}$/.test(v);
 const cleanPart=(p)=>({sku:safe(p.sku,40),name:safe(p.name,90),description:safe(p.description,500),category:safe(p.category,40),image:safe(p.image,200),pricePence:p.pricePence,weightGrams:p.weightGrams,lengthCm:p.lengthCm,widthCm:p.widthCm,heightCm:p.heightCm,active:p.active===true});
-const getPart=async id=>partsStore().get('part/'+id,{type:'json'});
-const partsList=async()=>{const r=await partsStore().list({prefix:'part/'});return (await Promise.all(r.blobs.map(x=>partsStore().get(x.key,{type:'json'})))).filter(Boolean)};
+const getPart=async id=>{try{const stored=await partsStore().get('part/'+id,{type:'json'});if(stored)return stored;}catch(e){console.warn('Parts storage unavailable; using verified static catalogue:',e.message)}return catalogue.find(p=>p.sku===id)||null;};
+const partsList=async()=>{try{const r=await partsStore().list({prefix:'part/'});const stored=(await Promise.all(r.blobs.map(x=>partsStore().get(x.key,{type:'json'})))).filter(Boolean);const merged=new Map(catalogue.map(p=>[p.sku,p]));stored.forEach(p=>merged.set(p.sku,p));return [...merged.values()];}catch(e){console.warn('Parts storage unavailable; showing verified static catalogue:',e.message);return catalogue;}};
 const gbp=(v)=>Number.isSafeInteger(v)&&v>=1&&v<=1000000;
 // Shipping amounts are EX VAT in pence. Set your own rates in Netlify environment variables.
 const shippingRates=()=>{

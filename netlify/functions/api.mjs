@@ -34,22 +34,35 @@ const shippingRates=()=>{
  const names=['SMALL','MEDIUM','LARGE'];
  return names.map(name=>{const v=Number(process.env['PARTS_SHIP_'+name+'_PENCE']);return Number.isSafeInteger(v)&&v>=0&&v<=100000? v:null});
 };
+// Explicit parcel tiers avoid relying on unconfirmed packed dimensions.
+// Review these product classifications before accepting live orders.
+const approvedShippingTiers = Object.freeze({
+ 'bd-led-rear-pair':'Small',
+ 'bd-whale-lock':'Small',
+ 'bd-compression-lock':'Small',
+ 'bd-fuel-filler':'Small',
+ 'bd-jerry-holder':'Medium',
+ 'bd-spare-wheel-holder':'Large',
+ 'bd-water-tank-45l':'Large',
+ 'bd-jack-set4':'Large',
+ 'bd-jack-each':'Medium',
+ 'bd-headboard-light':'Medium',
+ 'bd-number-plate-light':'Small',
+ 'bd-side-board-catch':'Small',
+ 'bd-d-lash-ring':'Small',
+ 'bd-side-boxes':'Large'
+});
 const shippingQuote=items=>{
- let grams=0,longest=0,volume=0;
- for(const i of items){
-  if(![i.weightGrams,i.lengthCm,i.widthCm,i.heightCm].every(v=>Number.isSafeInteger(v)&&v>0))return {quoteRequired:true,reason:'A part is missing packed weight or dimensions'};
-  grams+=i.weightGrams*i.qty;
-  longest=Math.max(longest,i.lengthCm,i.widthCm,i.heightCm);
-  volume+=i.lengthCm*i.widthCm*i.heightCm*i.qty;
+ const tiers=['Small','Medium','Large'];
+ let highest=-1;
+ for(const item of items){
+  const tier=approvedShippingTiers[item.sku];
+  if(!tier)return {quoteRequired:true,reason:'Delivery classification not approved for '+item.sku};
+  highest=Math.max(highest,tiers.indexOf(tier));
  }
- // Conservative combined-volume rule: assumes all items can be packed together.
- const volumetricGrams=Math.ceil(volume/5000*1000);
- const chargeable=Math.max(grams,volumetricGrams);
- const tier=longest<=45&&chargeable<=2000?0:longest<=80&&chargeable<=10000?1:longest<=100&&chargeable<=20000?2:-1;
- if(tier<0)return {quoteRequired:true,reason:'Oversized or heavy order requires a delivery quotation',grams,chargeable};
- const rate=shippingRates()[tier];
- if(rate===null)return {quoteRequired:true,reason:'Delivery price for this parcel category is not configured',grams,chargeable};
- return {quoteRequired:false,shippingPence:rate,tier:['Small','Medium','Large'][tier],grams,chargeable};
+ const rate=shippingRates()[highest];
+ if(rate===null)return {quoteRequired:true,reason:'Delivery price for this parcel category is not configured'};
+ return {quoteRequired:false,shippingPence:rate,tier:tiers[highest]};
 };
 
 

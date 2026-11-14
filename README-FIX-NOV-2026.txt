@@ -7,3 +7,5 @@ IMPORTANT: Parts have NO verified packed weights/dimensions and NO verified phot
 Netlify Blobs remains necessary for parts administration and order records. To enable Stripe checkout, resolve the Netlify Blobs runtime configuration, enter verified dimensions, configure Stripe secrets, and test a full test-mode payment and webhook. Do not accept live orders until these are confirmed.
 
 Deployment: replace the extracted website files in the GitHub repository root, commit and push with GitHub Desktop. Netlify builds automatically. Verify https://blackdogweldinginfo.netlify.app/api/parts returns JSON with 13 items.
+
+NOV 14 UPDATE: Add to Basket now scrolls to the basket count so the action is visible. If the shipping API is unavailable, the shop clearly requests a delivery quote and disables checkout. This does not resolve Netlify Blobs runtime configuration or enable payments.

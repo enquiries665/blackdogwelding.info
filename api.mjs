@@ -34,22 +34,36 @@ const shippingRates=()=>{
  const names=['SMALL','MEDIUM','LARGE'];
  return names.map(name=>{const v=Number(process.env['PARTS_SHIP_'+name+'_PENCE']);return Number.isSafeInteger(v)&&v>=0&&v<=100000? v:null});
 };
+// Approved flat-rate shipping: one charge for the highest-category item in the order.
+// The server owns these classifications; client-supplied categories are never trusted.
+const approvedShippingTiers = Object.freeze({
+ 'bd-led-rear-pair':'Small',
+ 'bd-whale-lock':'Small',
+ 'bd-compression-lock':'Small',
+ 'bd-fuel-filler':'Small',
+ 'bd-jerry-holder':'Medium',
+ 'bd-spare-wheel-holder':'Medium',
+ 'bd-water-tank-45l':'Large',
+ 'bd-jack-set4':'Large',
+ 'bd-jack-each':'Medium',
+ 'bd-headboard-light':'Small',
+ 'bd-number-plate-light':'Small',
+ 'bd-side-board-catch':'Small',
+ 'bd-d-lash-ring':'Small',
+ 'bd-side-boxes':'Large'
+});
 const shippingQuote=items=>{
- let grams=0,longest=0,volume=0;
- for(const i of items){
-  if(![i.weightGrams,i.lengthCm,i.widthCm,i.heightCm].every(v=>Number.isSafeInteger(v)&&v>0))return {quoteRequired:true,reason:'A part is missing packed weight or dimensions'};
-  grams+=i.weightGrams*i.qty;
-  longest=Math.max(longest,i.lengthCm,i.widthCm,i.heightCm);
-  volume+=i.lengthCm*i.widthCm*i.heightCm*i.qty;
+ const rank={Small:0,Medium:1,Large:2};
+ let highest=-1;
+ for(const item of items){
+  const tier=approvedShippingTiers[item.sku];
+  if(!Object.hasOwn(rank,tier))return {quoteRequired:true,reason:'This part requires a delivery quotation'};
+  highest=Math.max(highest,rank[tier]);
  }
- // Conservative combined-volume rule: assumes all items can be packed together.
- const volumetricGrams=Math.ceil(volume/5000*1000);
- const chargeable=Math.max(grams,volumetricGrams);
- const tier=longest<=45&&chargeable<=2000?0:longest<=80&&chargeable<=10000?1:longest<=100&&chargeable<=20000?2:-1;
- if(tier<0)return {quoteRequired:true,reason:'Oversized or heavy order requires a delivery quotation',grams,chargeable};
- const rate=shippingRates()[tier];
- if(rate===null)return {quoteRequired:true,reason:'Delivery price for this parcel category is not configured',grams,chargeable};
- return {quoteRequired:false,shippingPence:rate,tier:['Small','Medium','Large'][tier],grams,chargeable};
+ if(highest<0)return {quoteRequired:true,reason:'Empty basket'};
+ const rate=shippingRates()[highest];
+ if(rate===null)return {quoteRequired:true,reason:'Delivery price is not configured'};
+ return {quoteRequired:false,shippingPence:rate,tier:['Small','Medium','Large'][highest]};
 };
 
 
@@ -110,7 +124,7 @@ export const handler=async(event)=>{
    const subtotal=items.reduce((n,i)=>n+i.qty*i.pricePence,0),shipping=delivery.shippingPence,total=Math.round((subtotal+shipping)*1.2);
    if(!amount(total)||total===0)return error(400,'Invalid order total');
    const id=crypto.randomBytes(14).toString('hex');
-   const order={id,createdAt:new Date().toISOString(),status:'checkout_pending',email:b.email,fulfilment:'ship',deliveryTier:delivery.tier,chargeableWeightGrams:delivery.chargeable,items,subtotalPence:subtotal,shippingPence:shipping,totalPence:total};
+   const order={id,createdAt:new Date().toISOString(),status:'checkout_pending',email:b.email,fulfilment:'ship',deliveryTier:delivery.tier,items,subtotalPence:subtotal,shippingPence:shipping,totalPence:total};
    // A single server-priced line item guarantees the final approved VAT-inclusive total.
    const line_items=[{price_data:{currency:'gbp',product_data:{name:'Blackdog spare parts order '+id,description:items.map(i=>i.qty+' × '+i.sku).join(', ').slice(0,500)},unit_amount:total},quantity:1}];
    const session=await stripe().checkout.sessions.create({mode:'payment',customer_email:b.email,line_items,

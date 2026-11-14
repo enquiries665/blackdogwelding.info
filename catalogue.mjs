@@ -168,5 +168,26 @@ export const catalogue = [
     "widthCm": null,
     "heightCm": null,
     "active": true
+  },
+  {
+    "sku": "bd-side-boxes",
+    "name": "SIDE BOXES",
+    "category": "Canopy",
+    "description": "Blackdog Welding side box. Sold individually. Six product photos available.",
+    "image": "parts-photos/IMG_3382.jpeg",
+    "images": [
+      "parts-photos/IMG_3382.jpeg",
+      "parts-photos/IMG_3380.jpeg",
+      "parts-photos/IMG_3381.jpeg",
+      "parts-photos/IMG_3378.jpeg",
+      "parts-photos/IMG_3376.jpeg",
+      "parts-photos/IMG_3375.jpeg"
+    ],
+    "pricePence": 22000,
+    "weightGrams": null,
+    "lengthCm": null,
+    "widthCm": null,
+    "heightCm": null,
+    "active": true
   }
 ];

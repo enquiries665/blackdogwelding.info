@@ -80,7 +80,7 @@ export const handler=async(event)=>{
     const s=e.data.object,id=s.metadata?.orderId;
     if(s.metadata?.kind==='parts'&&id&&/^[a-f0-9]{28}$/.test(id)){
      const o=await partsOrders().get('order/'+id,{type:'json'});
-     if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===o.totalPence){o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;o.shippingDetails=s.shipping_details||s.collected_information?.shipping_details||null;await partsOrders().setJSON('order/'+id,o);}
+     if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===o.totalPence){o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;o.shippingDetails=s.shipping_details||s.collected_information?.shipping_details||null;try{await partsOrders().setJSON('order/'+id,o)}catch(err){console.error('Paid parts order could not be persisted:',id,err.message)}}
      return json(200,{received:true});
     }
     if(id&&/^[a-f0-9]{28}$/.test(id)){
@@ -131,7 +131,7 @@ export const handler=async(event)=>{
     shipping_address_collection:{allowed_countries:['GB']},
     phone_number_collection:{enabled:true},
     success_url:url()+'/parts-success.html?session_id={CHECKOUT_SESSION_ID}',cancel_url:url()+'/parts.html',
-    metadata:{kind:'parts',orderId:id},client_reference_id:id,payment_method_types:['card'],expires_at:Math.floor(Date.now()/1000)+1800},
+    metadata:{kind:'parts',orderId:id,items:items.map(i=>i.qty+'x'+i.sku).join(';').slice(0,480),shippingTier:delivery.tier,subtotalPence:String(subtotal),shippingPence:String(shipping),totalPence:String(total)},client_reference_id:id,payment_method_types:['card'],expires_at:Math.floor(Date.now()/1000)+1800},
     {idempotencyKey:'bd-parts-'+id});
    order.stripeSessionId=session.id;await partsOrders().setJSON('order/'+id,order);return json(200,{url:session.url});
   }

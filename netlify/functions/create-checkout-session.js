@@ -1,9 +1,9 @@
-const Stripe = require('stripe');
+import Stripe from 'stripe';
 const prices = {tray:4650,canopy:7850};
 const allowedMakes = ['Ford','Toyota','Isuzu','Mitsubishi','Nissan','Volkswagen','Ram','Other'];
 const valid = (s, max=100) => typeof s === 'string' && s.trim().length>0 && s.length<=max;
 const error = (statusCode,message)=>({statusCode,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:message})});
-exports.handler = async event => {
+export const handler = async event => {
   if(event.httpMethod!=='POST')return error(405,'Method not allowed');
   if(!process.env.STRIPE_SECRET_KEY)return error(503,'Stripe is not configured yet');
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}

@@ -1,5 +1,5 @@
-const Stripe=require('stripe');
-exports.handler=async event=>{
+import Stripe from 'stripe';
+export const handler=async event=>{
   const id=event.queryStringParameters?.session_id;
   if(!id||!/^cs_(test_)?[A-Za-z0-9]+$/.test(id))return {statusCode:400,body:JSON.stringify({error:'Invalid checkout session'})};
   if(!process.env.STRIPE_SECRET_KEY)return {statusCode:503,body:JSON.stringify({error:'Stripe is not configured'})};

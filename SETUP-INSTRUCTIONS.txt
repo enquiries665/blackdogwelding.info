@@ -1,0 +1,16 @@
+BLACKDOG WELDING — STRIPE FULL PAYMENT SETUP
+
+1. Upload shop.html, payment-success.html, package.json and netlify.toml to the ROOT of the GitHub repository.
+2. Upload netlify/functions/create-checkout-session.js and netlify/functions/check-payment.js preserving their folder paths.
+3. In Netlify: Site configuration > Environment variables > Add variable:
+   STRIPE_SECRET_KEY = your Stripe TEST secret key (sk_test_...) initially.
+   Do not put this key in shop.html, GitHub, or ChatGPT.
+4. Trigger a fresh Netlify deployment. Confirm the build installs npm dependencies and deploys both functions.
+5. Test checkout with Stripe test mode and verify prices, options, payment receipt, order metadata in Stripe Dashboard, and the payment success page.
+6. Before going live: review order terms, refund/cancellation policy, lead times, VAT treatment and fitment process. Replace the Netlify STRIPE_SECRET_KEY with your LIVE secret key (sk_live_...) and redeploy.
+7. The Stripe Dashboard records paid orders and vehicle details as Checkout Session metadata. This update does NOT automatically email the workshop, create a manufacturing job, or guarantee fitment. Configure Stripe notifications / order handling separately.
+
+PRICES: Tray £4,650 ex VAT; canopy/tray £7,850 ex VAT; 45L tank £399 ex VAT; LED lights £55 each ex VAT; D-rings £14 each ex VAT; VAT 20%.
+Only double-cab workshop-fitting orders without bespoke boxes can pay automatically. Other configurations open an email quote request.
+
+IMPORTANT: Keep Stripe keys secret. Never commit them to GitHub.

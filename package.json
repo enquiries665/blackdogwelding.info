@@ -1,13 +1,6 @@
 {
-  "name": "blackdog-welding-netlify",
-  "version": "2.0.0",
+  "name": "blackdog-stripe-checkout",
   "private": true,
-  "type": "module",
-  "dependencies": {
-    "@netlify/blobs": "^9.1.0",
-    "stripe": "^17.7.0"
-  },
-  "scripts": {
-    "check": "node --check netlify/functions/api.mjs"
-  }
+  "version": "1.0.0",
+  "dependencies": { "stripe": "^17.7.0" }
 }

@@ -21,7 +21,7 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x737c89,3));
 const directional=new THREE.DirectionalLight(0xffffff,3);directional.position.set(4,7,8);scene.add(directional);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
 status.textContent='Loading 3D model…';
-const url='./blackdog-canopy-model.glb';
+const url='./blackdog-canopy-model-small.glb';
 const response=await fetch(url,{cache:'no-store'});
 if(!response.ok)throw new Error('Cannot download '+url+' (HTTP '+response.status+'). Confirm the file is in the same GitHub folder as this viewer.');
 const contentType=response.headers.get('content-type')||'';

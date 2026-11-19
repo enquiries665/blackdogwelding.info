@@ -5,7 +5,9 @@ const valid = (s, max=100) => typeof s === 'string' && s.trim().length>0 && s.le
 const error = (statusCode,message)=>({statusCode,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:message})});
 export const handler = async event => {
   if(event.httpMethod!=='POST')return error(405,'Method not allowed');
-  if(!process.env.STRIPE_SECRET_KEY)return error(503,'Stripe is not configured yet');
+  const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify. Set STRIPE_SECRET_KEY to your sk_test_ key.');
+  if (!stripeKey.startsWith('sk_test_')) return error(503, 'Stripe key configuration is incorrect. STRIPE_SECRET_KEY must contain a standard sk_test_ secret key while testing.');
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}
   if(!Object.hasOwn(prices,p.product)||!allowedMakes.includes(p.make)||!valid(p.model,80)||!valid(p.customerEmail,254)||!/^\S+@\S+\.\S+$/.test(p.customerEmail))return error(400,'Please check your build and email');
   const year=Number(p.year), lights=Number(p.lights), eyes=Number(p.eyes);
@@ -15,7 +17,7 @@ export const handler = async event => {
   const amountPence=Math.round(subtotalPence*1.2); // 20% VAT, integer pennies
   const origin=process.env.URL||process.env.DEPLOY_PRIME_URL;
   if(!origin||!/^https:\/\//.test(origin))return error(503,'Site URL is not configured');
-  const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
+  const stripe=new Stripe(stripeKey);
   try{
     const session=await stripe.checkout.sessions.create({
       mode:'payment',customer_email:p.customerEmail,client_reference_id:'blackdog-'+Date.now(),
@@ -35,6 +37,5 @@ export const handler = async event => {
     requestId: e.requestId
   });
   return error(502, 'Could not start Stripe checkout. Please try again or contact Blackdog Welding.');
-    return error(502, 'Could not start Stripe checkout. Please try again or contact Blackdog Welding.');
-  }
+}
 };

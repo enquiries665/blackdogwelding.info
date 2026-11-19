@@ -26,5 +26,13 @@ export const handler = async event => {
       cancel_url:`${origin}/shop.html`
     });
     return {statusCode:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store'},body:JSON.stringify({url:session.url})};
-  }catch(e){console.error('Stripe checkout creation failed',e.type||e.message);return error(502,'Could not start Stripe checkout. Please try again or contact Blackdog Welding.')}
-};
+ }catch(e){
+  console.error('Stripe checkout creation failed', {
+    type: e.type,
+    code: e.code,
+    message: e.message,
+    statusCode: e.statusCode,
+    requestId: e.requestId
+  });
+  return error(502, 'Could not start Stripe checkout. Please try again or contact Blackdog Welding.');
+}

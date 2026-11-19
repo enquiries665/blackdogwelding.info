@@ -6,9 +6,13 @@ const valid = (s, max=100) => typeof s === 'string' && s.trim().length>0 && s.le
 const error = (statusCode,message)=>({statusCode,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:message})});
 export const handler = async event => {
   if(event.httpMethod!=='POST')return error(405,'Method not allowed');
+  // Live payments require an explicit mode switch AND a matching Stripe secret key.
+  const stripeMode = (process.env.STRIPE_MODE || 'test').trim().toLowerCase();
+  if (!['test','live'].includes(stripeMode)) return error(503, 'Invalid Stripe mode configuration');
   const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
-  if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify. Set STRIPE_SECRET_KEY to your sk_test_ key.');
-  if (!stripeKey.startsWith('sk_test_')) return error(503, 'Stripe key configuration is incorrect. STRIPE_SECRET_KEY must contain a standard sk_test_ secret key while testing.');
+  if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify');
+  if (!stripeKey.startsWith(stripeMode === 'live' ? 'sk_live_' : 'sk_test_'))
+    return error(503, 'Stripe secret key does not match configured payment mode');
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}
   if(!Object.hasOwn(prices,p.product)||!allowedMakes.includes(p.make)||!valid(p.model,80)||!valid(p.customerEmail,254)||!/^\S+@\S+\.\S+$/.test(p.customerEmail))return error(400,'Please check your build and email');
   const year=Number(p.year), lights=Number(p.lights), eyes=Number(p.eyes);
@@ -17,12 +21,14 @@ export const handler = async event => {
   if(p.cab!=='Double Cab'||p.fulfilment!=='fit'||p.boxes!==false)return error(400,'This configuration needs a confirmed quote before payment');
   const subtotalPence=(prices[p.product]+(p.tank?399:0)+lights*55+eyes*14)*100;
   const amountPence=Math.round(subtotalPence*1.2); // 20% VAT, integer pennies
-  const origin=process.env.URL||process.env.DEPLOY_PRIME_URL;
+  // Use the canonical production site, not a preview deploy URL.
+  const origin=(process.env.URL||'').replace(/\/$/,'');
   if(!origin||!/^https:\/\//.test(origin))return error(503,'Site URL is not configured');
   const stripe=new Stripe(stripeKey);
   try{
     const session=await stripe.checkout.sessions.create({
       mode:'payment',customer_email:p.customerEmail,client_reference_id:'blackdog-'+Date.now(),
+      billing_address_collection:'required',
       line_items:[{price_data:{currency:'gbp',unit_amount:amountPence,product_data:{name:productNames[p.product],description:`${p.make} ${p.model} (${year}); workshop fitting; extras included; VAT included`}},quantity:1}],
       metadata:{product:p.product,make:p.make,model:p.model.trim(),year:String(year),cab:p.cab,fulfilment:'Workshop fitting',water_tank:p.tank?'Yes':'No',led_lights:String(lights),lashing_eyes:String(eyes),subtotal_gbp:(subtotalPence/100).toFixed(2),vat_gbp:((amountPence-subtotalPence)/100).toFixed(2),total_gbp:(amountPence/100).toFixed(2),lead_time_accepted:'3.5 months'},
       payment_intent_data:{metadata:{product:p.product,vehicle:`${p.make} ${p.model}`,year:String(year)}},

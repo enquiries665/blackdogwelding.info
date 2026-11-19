@@ -30,7 +30,7 @@ export const handler = async event => {
       mode:'payment',customer_email:p.customerEmail,client_reference_id:'blackdog-'+Date.now(),
       billing_address_collection:'required',
       line_items:[{price_data:{currency:'gbp',unit_amount:amountPence,product_data:{name:productNames[p.product],description:`${p.make} ${p.model} (${year}); workshop fitting; extras included; VAT included`}},quantity:1}],
-      metadata:{product:p.product,make:p.make,model:p.model.trim(),year:String(year),cab:p.cab,fulfilment:'Workshop fitting',water_tank:p.tank?'Yes':'No',led_lights:String(lights),lashing_eyes:String(eyes),subtotal_gbp:(subtotalPence/100).toFixed(2),vat_gbp:((amountPence-subtotalPence)/100).toFixed(2),total_gbp:(amountPence/100).toFixed(2),lead_time_accepted:'3.5 months'},
+      metadata:{product:p.product,make:p.make,model:p.model.trim(),year:String(year),cab:p.cab,fulfilment:'Workshop fitting',water_tank:p.tank?'Yes':'No',led_lights:String(lights),lashing_eyes:String(eyes),subtotal_gbp:(subtotalPence/100).toFixed(2),vat_gbp:((amountPence-subtotalPence)/100).toFixed(2),total_gbp:(amountPence/100).toFixed(2),lead_time_accepted:'3.5 months',customer_name:p.customerName.trim(),customer_phone:p.customerPhone.trim(),billing_address:p.billingAddress.trim(),delivery_postcode:String(p.postcode||'').slice(0,30)},
       payment_intent_data:{metadata:{product:p.product,vehicle:`${p.make} ${p.model}`,year:String(year)}},
       success_url:`${origin}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:`${origin}/shop.html`

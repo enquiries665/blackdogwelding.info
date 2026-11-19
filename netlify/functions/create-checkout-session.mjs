@@ -35,4 +35,6 @@ export const handler = async event => {
     requestId: e.requestId
   });
   return error(502, 'Could not start Stripe checkout. Please try again or contact Blackdog Welding.');
-}
+    return error(502, 'Could not start Stripe checkout. Please try again or contact Blackdog Welding.');
+  }
+};

@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-const prices = {tray:4650,canopy:7850};
+const prices = {tray:4650,canopy:7850,fencing:7850,construction:8250,agriculture:7850};
 const allowedMakes = ['Ford','Toyota','Isuzu','Mitsubishi','Nissan','Volkswagen','Ram','Other'];
 const valid = (s, max=100) => typeof s === 'string' && s.trim().length>0 && s.length<=max;
 const error = (statusCode,message)=>({statusCode,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:message})});
@@ -21,7 +21,13 @@ export const handler = async event => {
   try{
     const session=await stripe.checkout.sessions.create({
       mode:'payment',customer_email:p.customerEmail,client_reference_id:'blackdog-'+Date.now(),
-      line_items:[{price_data:{currency:'gbp',unit_amount:amountPence,product_data:{name:p.product==='tray'?'Standard Double Cab Tray':'Shooting Tray & Canopy',description:`${p.make} ${p.model} (${year}); workshop fitting; extras included; VAT included`}},quantity:1}],
+      line_items:[{price_data:{currency:'gbp',unit_amount:amountPence,product_data:{name:({
+  tray:'Standard Double Cab Tray',
+  canopy:'Shooting Tray & Canopy',
+  fencing:'Fencing Contractor',
+  construction:'Construction',
+  agriculture:'Agriculture'
+})[p.product],description:`${p.make} ${p.model} (${year}); workshop fitting; extras included; VAT included`}},quantity:1}],
       metadata:{product:p.product,make:p.make,model:p.model.trim(),year:String(year),cab:p.cab,fulfilment:'Workshop fitting',water_tank:p.tank?'Yes':'No',led_lights:String(lights),lashing_eyes:String(eyes),subtotal_gbp:(subtotalPence/100).toFixed(2),vat_gbp:((amountPence-subtotalPence)/100).toFixed(2),total_gbp:(amountPence/100).toFixed(2),lead_time_accepted:'3.5 months'},
       payment_intent_data:{metadata:{product:p.product,vehicle:`${p.make} ${p.model}`,year:String(year)}},
       success_url:`${origin}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`,

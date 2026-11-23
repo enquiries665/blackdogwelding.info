@@ -34,38 +34,67 @@ const shippingRates=()=>{
  const names=['SMALL','MEDIUM','LARGE'];
  return names.map(name=>{const v=Number(process.env['PARTS_SHIP_'+name+'_PENCE']);return Number.isSafeInteger(v)&&v>=0&&v<=100000? v:null});
 };
-// Approved flat-rate shipping: one charge for the highest-category item in the order.
-// The server owns these classifications; client-supplied categories are never trusted.
+// Explicit parcel tiers avoid relying on unconfirmed packed dimensions.
+// Review these product classifications before accepting live orders.
 const approvedShippingTiers = Object.freeze({
  'bd-led-rear-pair':'Small',
  'bd-whale-lock':'Small',
  'bd-compression-lock':'Small',
  'bd-fuel-filler':'Small',
  'bd-jerry-holder':'Medium',
- 'bd-spare-wheel-holder':'Medium',
+ 'bd-spare-wheel-holder':'Large',
  'bd-water-tank-45l':'Large',
  'bd-jack-set4':'Large',
  'bd-jack-each':'Medium',
- 'bd-headboard-light':'Small',
+ 'bd-headboard-light':'Medium',
  'bd-number-plate-light':'Small',
  'bd-side-board-catch':'Small',
  'bd-d-lash-ring':'Small',
  'bd-side-boxes':'Large'
 });
 const shippingQuote=items=>{
- const rank={Small:0,Medium:1,Large:2};
+ const tiers=['Small','Medium','Large'];
  let highest=-1;
  for(const item of items){
   const tier=approvedShippingTiers[item.sku];
-  if(!Object.hasOwn(rank,tier))return {quoteRequired:true,reason:'This part requires a delivery quotation'};
-  highest=Math.max(highest,rank[tier]);
+  if(!tier)return {quoteRequired:true,reason:'Delivery classification not approved for '+item.sku};
+  highest=Math.max(highest,tiers.indexOf(tier));
  }
- if(highest<0)return {quoteRequired:true,reason:'Empty basket'};
  const rate=shippingRates()[highest];
- if(rate===null)return {quoteRequired:true,reason:'Delivery price is not configured'};
- return {quoteRequired:false,shippingPence:rate,tier:['Small','Medium','Large'][highest]};
+ if(rate===null)return {quoteRequired:true,reason:'Delivery price for this parcel category is not configured'};
+ return {quoteRequired:false,shippingPence:rate,tier:tiers[highest]};
 };
 
+
+// Order notifications are sent server-side only, after a verified Stripe webhook.
+// Configure RESEND_API_KEY and ORDER_EMAIL_FROM in Netlify environment variables.
+const notifyAddress='enquiries@blackdogwelding.info';
+const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const formatGBP=p=>'£'+(p/100).toFixed(2);
+const notifyOrder=async(o,kind,s)=>{
+ if(o.orderEmailSentAt)return;
+ const apiKey=process.env.RESEND_API_KEY;
+ const from=process.env.ORDER_EMAIL_FROM;
+ if(!apiKey||!from)throw Error('Order email not configured: set RESEND_API_KEY and ORDER_EMAIL_FROM');
+ const shipping=o.shippingDetails||s.collected_information?.shipping_details||s.shipping_details||null;
+ const address=shipping?.address;
+ const customerName=shipping?.name||s.customer_details?.name||'Not supplied';
+ const customerEmail=o.email||o.customerEmail||s.customer_details?.email||'Not supplied';
+ const phone=s.customer_details?.phone||'Not supplied';
+ const items=kind==='parts'?o.items.map(i=>`${i.name} × ${i.qty}`):[`${o.product==='tray'?'Standard tray':'Shooting tray & canopy'} — ${text(o)}`];
+ const extra=kind==='parts'?`Delivery tier: ${o.deliveryTier||'Not specified'}`:`Fulfilment: ${o.fulfilment}; Tank: ${o.tank?'Yes':'No'}; Lights: ${o.lights}; Lashing eyes: ${o.eyes}; Boxes: ${o.boxes?'Yes':'No'}`;
+ const addressText=address?[address.line1,address.line2,address.city,address.state,address.postal_code,address.country].filter(Boolean).join(', '):'Not supplied in webhook — check Stripe payment';
+ const rows=[['Order reference',o.id],['Items',items.join('\n')],['Customer',customerName],['Email',customerEmail],['Phone',phone],['Delivery address',addressText],['Details',extra],['Amount paid',formatGBP(o.totalPence??Math.round(calc(o)*1.2))],['Stripe payment',String(s.payment_intent||s.id)]];
+ const html=`<h2>Blackdog Welding — paid ${kind==='parts'?'parts':'tray/canopy'} order</h2><table cellpadding="8" border="1" style="border-collapse:collapse">${rows.map(([k,v])=>`<tr><th align="left">${escapeHtml(k)}</th><td style="white-space:pre-line">${escapeHtml(v)}</td></tr>`).join('')}</table><p>Payment confirmed by Stripe. Check Stripe for the authoritative transaction details.</p>`;
+ const response=await fetch('https://api.resend.com/emails',{
+  method:'POST',
+  headers:{'Authorization':`Bearer ${apiKey}`,'Content-Type':'application/json','Idempotency-Key':`blackdog-paid-${o.id}`},
+  body:JSON.stringify({from,to:[notifyAddress],subject:`Blackdog Welding — PAID ORDER ${o.id}`,html})
+ });
+ if(!response.ok){const detail=(await response.text()).slice(0,300);throw Error(`Order email failed (${response.status}): ${detail}`)}
+ o.orderEmailSentAt=new Date().toISOString();
+ if(kind==='parts')await partsOrders().setJSON('order/'+o.id,o);else await put(o);
+};
 
 export const handler=async(event)=>{
  const method=event.httpMethod;
@@ -76,17 +105,27 @@ export const handler=async(event)=>{
    if(!process.env.STRIPE_WEBHOOK_SECRET)return error(503,'Webhook not configured');
    const raw=event.isBase64Encoded?Buffer.from(event.body||'','base64'):event.body||'';
    let e;try{e=stripe().webhooks.constructEvent(raw,headers['stripe-signature'],process.env.STRIPE_WEBHOOK_SECRET)}catch{return error(400,'Invalid Stripe signature')}
-   if(e.type==='checkout.session.completed'&&e.data.object.payment_status==='paid'){
+   if((e.type==='checkout.session.completed'&&e.data.object.payment_status==='paid')||e.type==='checkout.session.async_payment_succeeded'){
     const s=e.data.object,id=s.metadata?.orderId;
-    if(s.metadata?.kind==='parts'&&id&&/^[a-f0-9]{28}$/.test(id)){
-     const o=await partsOrders().get('order/'+id,{type:'json'});
-     if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===o.totalPence){o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;o.shippingDetails=s.shipping_details||s.collected_information?.shipping_details||null;try{await partsOrders().setJSON('order/'+id,o)}catch(err){console.error('Paid parts order could not be persisted:',id,err.message)}}
-     return json(200,{received:true});
-    }
     if(id&&/^[a-f0-9]{28}$/.test(id)){
-     const o=await get(id);
-     if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===Math.round(calc(o)*1.2)){
-      o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;await put(o);
+     if(s.metadata?.kind==='parts'){
+      const o=await partsOrders().get('order/'+id,{type:'json'});
+      if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===o.totalPence){
+       if(o.status!=='paid'){
+        o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;
+        o.shippingDetails=s.shipping_details||s.collected_information?.shipping_details||null;
+        await partsOrders().setJSON('order/'+id,o);
+       }
+       await notifyOrder(o,'parts',s);
+      }
+     }else{
+      const o=await get(id);
+      if(o&&o.stripeSessionId===s.id&&s.currency==='gbp'&&s.amount_total===Math.round(calc(o)*1.2)){
+       if(o.status!=='paid'){
+        o.status='paid';o.paidAt=new Date().toISOString();o.stripePaymentIntent=s.payment_intent;await put(o);
+       }
+       await notifyOrder(o,'build',s);
+      }
      }
     }
    }
@@ -124,14 +163,14 @@ export const handler=async(event)=>{
    const subtotal=items.reduce((n,i)=>n+i.qty*i.pricePence,0),shipping=delivery.shippingPence,total=Math.round((subtotal+shipping)*1.2);
    if(!amount(total)||total===0)return error(400,'Invalid order total');
    const id=crypto.randomBytes(14).toString('hex');
-   const order={id,createdAt:new Date().toISOString(),status:'checkout_pending',email:b.email,fulfilment:'ship',deliveryTier:delivery.tier,items,subtotalPence:subtotal,shippingPence:shipping,totalPence:total};
+   const order={id,createdAt:new Date().toISOString(),status:'checkout_pending',email:b.email,fulfilment:'ship',deliveryTier:delivery.tier,chargeableWeightGrams:delivery.chargeable,items,subtotalPence:subtotal,shippingPence:shipping,totalPence:total};
    // A single server-priced line item guarantees the final approved VAT-inclusive total.
    const line_items=[{price_data:{currency:'gbp',product_data:{name:'Blackdog spare parts order '+id,description:items.map(i=>i.qty+' × '+i.sku).join(', ').slice(0,500)},unit_amount:total},quantity:1}];
    const session=await stripe().checkout.sessions.create({mode:'payment',customer_email:b.email,line_items,
     shipping_address_collection:{allowed_countries:['GB']},
     phone_number_collection:{enabled:true},
     success_url:url()+'/parts-success.html?session_id={CHECKOUT_SESSION_ID}',cancel_url:url()+'/parts.html',
-    metadata:{kind:'parts',orderId:id,items:items.map(i=>i.qty+'x'+i.sku).join(';').slice(0,480),shippingTier:delivery.tier,subtotalPence:String(subtotal),shippingPence:String(shipping),totalPence:String(total)},client_reference_id:id,payment_method_types:['card'],expires_at:Math.floor(Date.now()/1000)+1800},
+    metadata:{kind:'parts',orderId:id},client_reference_id:id,payment_method_types:['card'],expires_at:Math.floor(Date.now()/1000)+1800},
     {idempotencyKey:'bd-parts-'+id});
    order.stripeSessionId=session.id;await partsOrders().setJSON('order/'+id,order);return json(200,{url:session.url});
   }

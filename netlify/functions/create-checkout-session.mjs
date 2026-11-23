@@ -1,3 +1,4 @@
+
 import Stripe from 'stripe';
 const prices = {tray:4650,canopy:7850,fencing:7850,construction:8250,agriculture:7850};
 const allowedMakes = ['Ford','Toyota','Isuzu','Mitsubishi','Nissan','Volkswagen','Ram','Other'];

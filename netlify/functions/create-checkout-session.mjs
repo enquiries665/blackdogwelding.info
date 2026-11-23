@@ -12,8 +12,11 @@ export const handler = async event => {
   if (!['test','live'].includes(stripeMode)) return error(503, 'Invalid Stripe mode configuration');
   const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
   if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify');
-  if (stripeMode !== 'live' || !/^(sk|rk)_live_/.test(stripeKey)) {
-    return error(503, 'A live Stripe secret or restricted key is required');
+  if (stripeMode !== 'live') {
+    return error(503, 'Diagnostic: Stripe mode is not live');
+}
+if (!/^(sk|rk)_live_/.test(stripeKey)) {
+    return error(503, 'Diagnostic: Stored Stripe key is not a live key');
 }
   
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}

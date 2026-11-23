@@ -2,5 +2,8 @@
   "name": "blackdog-stripe-checkout",
   "private": true,
   "version": "1.0.0",
-  "dependencies": { "stripe": "^17.7.0" }
+  "dependencies": {
+    "stripe": "^17.7.0",
+    "@netlify/blobs": "*"
+  }
 }

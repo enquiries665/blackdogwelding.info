@@ -12,8 +12,10 @@ export const handler = async event => {
   if (!['test','live'].includes(stripeMode)) return error(503, 'Invalid Stripe mode configuration');
   const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
   if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify');
-  if (!stripeKey.startsWith(stripeMode === 'live' ? 'sk_live_' : 'sk_test_'))
-    return error(503, 'Stripe secret key does not match configured payment mode');
+  if (stripeMode !== 'live' || !/^(sk|rk)_live_/.test(stripeKey)) {
+    return error(503, 'A live Stripe secret or restricted key is required');
+}
+  
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}
   if(!Object.hasOwn(prices,p.product)||!allowedMakes.includes(p.make)||!valid(p.model,80)||!valid(p.customerEmail,254)||!/^\S+@\S+\.\S+$/.test(p.customerEmail))return error(400,'Please check your build and email');
   const year=Number(p.year), lights=Number(p.lights), eyes=Number(p.eyes);

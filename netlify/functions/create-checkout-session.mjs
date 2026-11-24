@@ -16,7 +16,11 @@ const stripeKey = (process.env.STRIPE_TRAY_LIVE_KEY || '').trim();
     return error(503, 'Diagnostic: Stripe mode is not live');
 }
 if (!/^(sk|rk)_live_/.test(stripeKey)) {
-    return error(503, 'Diagnostic: Stored Stripe key is not a live key');
+return error(503, 'Diagnostic V2: ' + (
+    /^(sk|rk)_test_/.test(stripeKey) ? 'Test key detected' :
+    /^pk_/.test(stripeKey) ? 'Publishable key detected' :
+    'Unrecognised key format'
+));
 }
   
   let p;try{p=JSON.parse(event.body||'{}')}catch{return error(400,'Invalid request')}

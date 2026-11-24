@@ -10,7 +10,7 @@ export const handler = async event => {
   // Live payments require an explicit mode switch AND a matching Stripe secret key.
   const stripeMode = (process.env.STRIPE_MODE || 'test').trim().toLowerCase();
   if (!['test','live'].includes(stripeMode)) return error(503, 'Invalid Stripe mode configuration');
-  const stripeKey = (process.env.STRIPE_SECRET_KEY || '').trim();
+const stripeKey = (process.env.STRIPE_TRAY_LIVE_KEY || '').trim();
   if (!stripeKey) return error(503, 'Stripe secret key is missing from Netlify');
   if (stripeMode !== 'live') {
     return error(503, 'Diagnostic: Stripe mode is not live');
